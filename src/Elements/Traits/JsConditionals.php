@@ -4,92 +4,176 @@ namespace Kompo\Elements\Traits;
 
 trait JsConditionals
 {
-    /**
-     * Show element when field matches condition
-     * Usage: ->jsShowWhen('payment_method', '==', 'credit_card')
-     */
-    public function jsShowWhen($fieldName, $operator, $value)
-    {
-        $fieldJson = json_encode($fieldName);
-        $valueJson = json_encode($value);
-        $operators = [
-            '==' => '===',
-            '!=' => '!==',
-            '>' => '>',
-            '<' => '<',
-            '>=' => '>=',
-            '<=' => '<=',
-            'contains' => '.includes',
-        ];
-        $jsOp = $operators[$operator] ?? '===';
+    protected static $jsConditionOperators = [
+        '==' => '==',
+        '===' => '===',
+        '!=' => '!=',
+        '!==' => '!==',
+        '>' => '>',
+        '<' => '<',
+        '>=' => '>=',
+        '<=' => '<=',
+        'contains' => '.includes',
+    ];
 
-        $condition = $operator === 'contains'
-            ? "val{$jsOp}({$valueJson})"
-            : "val {$jsOp} {$valueJson}";
+    /**
+     * Show element when field matches condition.
+     * Usage: ->jsShowWhen('field', 'value')           // assumes ==
+     *        ->jsShowWhen('field', '!=', 'value')     // explicit operator
+     */
+    public function jsShowWhen($fieldName, ...$args)
+    {
+        return $this->jsConditionalConfig('show', $fieldName, $this->buildJsCondition($args));
+    }
+
+    public function jsHideWhen($fieldName, ...$args)
+    {
+        return $this->jsConditionalConfig('hide', $fieldName, $this->buildJsCondition($args));
+    }
+
+    public function jsEnableWhen($fieldName, ...$args)
+    {
+        return $this->jsConditionalConfig('enable', $fieldName, $this->buildJsCondition($args));
+    }
+
+    public function jsDisableWhen($fieldName, ...$args)
+    {
+        return $this->jsConditionalConfig('disable', $fieldName, $this->buildJsCondition($args));
+    }
+
+    // --- Filled / Empty ---
+
+    public function jsShowWhenFilled($fieldName)
+    {
+        return $this->jsConditionalConfig('show', $fieldName, "val !== null && val !== '' && val !== undefined");
+    }
+
+    public function jsHideWhenFilled($fieldName)
+    {
+        return $this->jsConditionalConfig('hide', $fieldName, "val !== null && val !== '' && val !== undefined");
+    }
+
+    public function jsShowWhenEmpty($fieldName)
+    {
+        return $this->jsConditionalConfig('show', $fieldName, "val === null || val === '' || val === undefined");
+    }
+
+    public function jsEnableWhenFilled($fieldName)
+    {
+        return $this->jsConditionalConfig('enable', $fieldName, "val !== null && val !== '' && val !== undefined");
+    }
+
+    // --- In (array membership) ---
+
+    public function jsShowWhenIn($fieldName, array $values)
+    {
+        return $this->jsConditionalConfig('show', $fieldName, $this->buildJsInCondition($values));
+    }
+
+    public function jsHideWhenIn($fieldName, array $values)
+    {
+        return $this->jsConditionalConfig('hide', $fieldName, $this->buildJsInCondition($values));
+    }
+
+    // --- Any (multiple OR conditions) ---
+
+    public function jsShowWhenAny($fieldName, array $conditions)
+    {
+        return $this->jsConditionalConfig('show', $fieldName, $this->buildJsAnyCondition($conditions));
+    }
+
+    public function jsHideWhenAny($fieldName, array $conditions)
+    {
+        return $this->jsConditionalConfig('hide', $fieldName, $this->buildJsAnyCondition($conditions));
+    }
+
+    // --- Callback (custom JS function) ---
+
+    public function jsShowWhenCallback($fieldName, $jsCallback)
+    {
+        return $this->jsConditionalConfig('show', $fieldName, "({$jsCallback})(val)");
+    }
+
+    public function jsHideWhenCallback($fieldName, $jsCallback)
+    {
+        return $this->jsConditionalConfig('hide', $fieldName, "({$jsCallback})(val)");
+    }
+
+    // --- Class conditional (separate config key) ---
+
+    public function jsClassWhen($fieldName, ...$args)
+    {
+        $classFalse = array_pop($args);
+        $classTrue = array_pop($args);
+
+        $condition = $this->buildJsCondition($args);
 
         return $this->config([
-            'jsConditional' => [
-                'type' => 'show',
+            'jsClassConditional' => [
                 'field' => $fieldName,
                 'condition' => $condition,
-            ]
+                'classTrue' => $classTrue,
+                'classFalse' => $classFalse,
+            ],
         ]);
     }
 
-    /**
-     * Hide element when field matches condition
-     */
-    public function jsHideWhen($fieldName, $operator, $value)
+    // ===== Internal builders =====
+
+    protected function jsConditionalConfig($type, $fieldName, $condition)
     {
-        $fieldJson = json_encode($fieldName);
-        $valueJson = json_encode($value);
-        $operators = ['==' => '===', '!=' => '!==', '>' => '>', '<' => '<'];
-        $jsOp = $operators[$operator] ?? '===';
+        // Start hidden for 'show' type to prevent flash before JS evaluates
+        if (in_array($type, ['show', 'enable'])) {
+            $this->class('vlHide')->style('display:none');
+        }
 
         return $this->config([
             'jsConditional' => [
-                'type' => 'hide',
+                'type' => $type,
                 'field' => $fieldName,
-                'condition' => "val {$jsOp} {$valueJson}",
-            ]
+                'condition' => $condition,
+            ],
         ]);
     }
 
-    /**
-     * Enable element when condition is met
-     */
-    public function jsEnableWhen($fieldName, $operator, $value)
+    protected function buildJsCondition(array $args)
     {
-        $fieldJson = json_encode($fieldName);
-        $valueJson = json_encode($value);
-        $operators = ['==' => '===', '!=' => '!=='];
-        $jsOp = $operators[$operator] ?? '===';
+        if (count($args) === 1) {
+            $operator = '==';
+            $value = $args[0];
+        } else {
+            $operator = $args[0];
+            $value = $args[1];
+        }
 
-        return $this->config([
-            'jsConditional' => [
-                'type' => 'enable',
-                'field' => $fieldName,
-                'condition' => "val {$jsOp} {$valueJson}",
-            ]
-        ]);
+        $jsOp = static::$jsConditionOperators[$operator] ?? '==';
+        $valueJson = json_encode($value);
+
+        if ($operator === 'contains') {
+            return "String(val){$jsOp}({$valueJson})";
+        }
+
+        return "String(val) {$jsOp} String({$valueJson})";
     }
 
-    /**
-     * Disable element when condition is met
-     */
-    public function jsDisableWhen($fieldName, $operator, $value)
+    protected function buildJsInCondition(array $values)
     {
-        $fieldJson = json_encode($fieldName);
-        $valueJson = json_encode($value);
-        $operators = ['==' => '===', '!=' => '!=='];
-        $jsOp = $operators[$operator] ?? '===';
+        $valuesJson = json_encode(array_map('strval', array_values($values)));
 
-        return $this->config([
-            'jsConditional' => [
-                'type' => 'disable',
-                'field' => $fieldName,
-                'condition' => "val {$jsOp} {$valueJson}",
-            ]
-        ]);
+        return "{$valuesJson}.includes(String(val))";
+    }
+
+    protected function buildJsAnyCondition(array $conditions)
+    {
+        $parts = [];
+
+        foreach ($conditions as $cond) {
+            if (!is_array($cond)) {
+                $cond = [$cond];
+            }
+            $parts[] = '(' . $this->buildJsCondition($cond) . ')';
+        }
+
+        return implode(' || ', $parts);
     }
 }
