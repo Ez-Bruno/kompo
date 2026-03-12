@@ -28,7 +28,9 @@ class KompoInfo extends KompoAjax
 
     public static function getKompo()
     {
-        if (!($bootInfo = static::header())) {
+        $bootInfo = static::header();
+
+        if (!$bootInfo || !is_string($bootInfo) || strlen($bootInfo) < 10) {
             throw new KompoBootInfoNotFoundException();
         }
 
