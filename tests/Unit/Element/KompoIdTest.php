@@ -30,17 +30,17 @@ class KompoIdTest extends EnvironmentBoot
     public function kompo_id_is_correctly_created_on_komponents_without_id()
     {
         $form = _Form::boot();
-
         $kompoId = KompoId::getFromElement($form);
         $this->assertNotNull($kompoId);
-        $this->assertEquals('_Form', substr($kompoId, 0, strlen($kompoId) - 13));
+        $this->assertEquals('_Form', $kompoId);
 
         $form = _Form::boot();
         $kompoId2 = KompoId::getFromElement($form);
         $this->assertNotNull($kompoId2);
-        $this->assertEquals('_Form', substr($kompoId2, 0, strlen($kompoId2) - 13));
+        $this->assertEquals('_Form', $kompoId2);
 
-        $this->assertNotEquals($kompoId, $kompoId2);
+        // Same class = same stable KompoId (deterministic, no uniqid())
+        $this->assertEquals($kompoId, $kompoId2);
     }
 
     /** @test */
