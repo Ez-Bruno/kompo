@@ -34,7 +34,7 @@ class KompoId extends KompoAjax
         $kompoId = is_array($kompoId) ? ($kompoId[static::$key] ?? null) : $kompoId; //array is when coming from bootInfo
 
         //if null, set from id or if already set
-        $bestKompoId = $kompoId ?: (static::getFromElement($el) ?: ($el->id ?: class_basename($el)));
+        $bestKompoId = $kompoId ?: (static::getFromElement($el) ?: ($el->id ?: class_basename($el).uniqid()));
 
         return static::setForBaseElement($el, $bestKompoId);
     }
