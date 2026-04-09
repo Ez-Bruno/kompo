@@ -25,7 +25,7 @@ class KompoId extends KompoAjax
             return static::setForBaseElement($el, $el->id);
         }
 
-        $stableId = $parentId . '-' . $index . '-' . class_basename($el);
+        $stableId = $parentId . '-' . $index . '-' . class_basename($el).uniqid();
         return static::setForBaseElement($el, $stableId);
     }
 
