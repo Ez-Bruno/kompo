@@ -153,6 +153,12 @@ trait JsConditionals
             return "String(val){$jsOp}({$valueJson})";
         }
 
+        if (is_bool($value)) {
+            $boolLiteral = $value ? 'true' : 'false';
+
+            return "!!val {$jsOp} {$boolLiteral}";
+        }
+
         return "String(val) {$jsOp} String({$valueJson})";
     }
 
